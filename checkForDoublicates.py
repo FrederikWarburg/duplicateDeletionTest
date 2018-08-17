@@ -4,9 +4,10 @@ import pandas as pd
 import cv2
 import numpy as np
 import shutil
+import matplotlib.pyplot as plt
 
 def deleteImage(path):
-
+    
     if os.path.exists(path):
 
         datePath, imageName = os.path.split(path)
@@ -26,6 +27,8 @@ def deleteImage(path):
         # delete image
         ############
 
+        #print("Delete image")
+
         for date in dates:
             pathToRemove = os.path.join(sequencePath, date, imageName)
             os.remove(pathToRemove)
@@ -36,6 +39,8 @@ def deleteImage(path):
         ############
         # rename images
         ############
+
+        #print("Rename image")
 
         for date in dates:
             n = len(os.listdir(os.path.join(sequencePath, "Reverse" + date)))
@@ -59,6 +64,8 @@ def deleteImage(path):
         # change info.csv
         ############
 
+        #print("Change info")
+
         data = pd.read_csv(os.path.join(sequencePath,"info.csv"))
 
         imageNames = data['imageName']
@@ -81,11 +88,24 @@ def deleteImage(path):
         # change overview.json
         ############
 
+        #print("Change overview")
+
         with open(os.path.join(pathPath,"overview.json")) as f:
             overview = json.load(f)
 
         sequenceNumber = sequenceName[len("sequenceSet"):]
+
+        keys = []
+        for key,value in overview.items():
+            keys.append(key)
+
+        #print(keys)
+
+        #print("sequenceNumber ", sequenceNumber, len(overview))
+
         sequence = overview[sequenceNumber]
+	
+        #print(len(sequence))
 
         for date in dates:
             overviewDate = sequence[date]
@@ -116,7 +136,11 @@ def deleteImage(path):
 
             sequence[date] = overviewDate
 
+        #print(len(sequence))
+
         overview[sequenceNumber] = sequence
+
+        #print("Overview ", len(overview))
 
         with open(os.path.join(pathPath,"overview.json"), 'w') as fp:
             json.dump(overview, fp, indent=4, sort_keys=True)
@@ -125,70 +149,36 @@ def deleteImage(path):
         # change description.json
         ############
 
+        #print("Change description")
+
         with open(os.path.join(pathPath,"description.json")) as f:
             description = json.load(f)
 
+        
+
         sequenceSets = description["sequenceSets"]
+	
+        #print(sequenceNumber)
+
         sequence = sequenceSets["sequence" + sequenceNumber]
+
+        #print(len(sequence))
+
         frames = sequence["frames"]
         sequence["frames"] = int(frames) - 1
         sequenceSets["sequence" + sequenceNumber] = sequence
+
+        #print(len(sequence))
+
         description["sequenceSets"] = sequenceSets
 
         with open(os.path.join(pathPath,"description.json"), 'w') as fp:
             json.dump(description, fp, indent=4, sort_keys=True)
-
-
-
-def getNextDouplicatePanoidsAndPaths(cityPath):
-
-    file = open(os.path.join(cityPath, "paths.txt"))
-    paths = []
-    for path in file:
-        paths.append(path[:-1])
-
-    file.close()
-
-    panoids = []
-
-    sequencePaths = []
-
-    for j, path in enumerate(paths):
-        pathPath = os.path.join(cityPath, path)
-
-        with open(os.path.join(pathPath, "description.json")) as f:
-            description = json.load(f)
-
-        numberOfSequenceSets = description['numberOfSequenceSets']
-
-        for i in range(numberOfSequenceSets):
-
-            sequencePath = os.path.join(pathPath, "sequenceSet" + str(i))
-
-            data = pd.read_csv(os.path.join(sequencePath, "info.csv"))
-
-            panoidForThisSequence = data['panoid']
-            imageNames = data['imageName']
-            years = data['year']
-
-            for panoid, year, imageName in zip(panoidForThisSequence, years, imageNames):
-                panoids.append(panoid)
-                sequencePaths.append(os.path.join(pathPath, "sequenceSet" + str(i), str(year), imageName))
-
-        # print("{0} / {1}".format(j,nPaths))
-
-                if len(np.array(panoids)) != len(np.unique(np.array(panoids))):
-                    panoids = np.array(panoids)
-                    more = True
-                    return panoids, sequencePaths, more
-
-    panoids = np.array(panoids)
-    if len(np.array(panoids)) != len(np.unique(np.array(panoids))):
-        more = True
+        #print("SUCCESFULLY IMAGE DELETION ", path)
     else:
-        more = False
-    print("HEY")
-    return panoids, sequencePaths, more
+        print("PATH DOES NOT EXIST ", path)
+        
+
 
 def getPanoidsAndPaths(cityPath):
     file = open(os.path.join(cityPath,"paths.txt"))
@@ -233,7 +223,7 @@ def getPanoidsAndPaths(cityPath):
 def duplicates(lst, item):
     return [i for i, x in enumerate(lst) if x == item]
 
-import matplotlib.pyplot as plt
+
 
 
 
@@ -263,7 +253,7 @@ def checkEmpty(path):
 
 
 def deleteFolder(path):
-
+    
     basePath1, imageName = os.path.split(path)
     basePath2, date = os.path.split(basePath1)
 
@@ -284,8 +274,9 @@ def deleteFolder(path):
 
     newSequenceSets = {}
 
-    for i, sequence in enumerate(sequenceSets):
-
+    for sequence in sequenceSets:
+        i = int(sequence[len('sequence'):])
+        #print(sequence, type(sequence), i, sequenceNumber)
         if i < sequenceNumber:
             newSequenceSets[sequence] = sequenceSets[sequence]
 
@@ -310,13 +301,15 @@ def deleteFolder(path):
 
     newOverview = {}
 
-    for i, sequence in enumerate(overview):
+    for sequence in overview:
+        i = int(sequence)
 
         if i < sequenceNumber:
             newOverview[sequence] = overview[sequence]
-
+        elif i == sequenceNumber:
+            pass
         elif i > sequenceNumber:
-            newOverview["sequence" + str(i - 1)] = overview[sequence]
+            newOverview[str(i - 1)] = overview[sequence]
 
     with open(os.path.join(basePath3, "overview.json"), 'w') as fp:
         json.dump(newOverview, fp, indent=4, sort_keys=True)
@@ -331,6 +324,7 @@ def deleteFolder(path):
             src = os.path.join(basePath3,"sequenceSet" + str(i))
             dst = os.path.join(basePath3,"sequenceSet" + str(i - 1))
             os.rename(src,dst)
+    
 
 def duplicatePaths():
 
@@ -384,7 +378,7 @@ def duplicatePaths():
     print(count)
 
 
-cityPath = "/Volumes/jcivera/Bangkok1"
+cityPath = "/home/frederik/Desktop/dataset/Madrid"
 
 panoids, sequencePaths = getPanoidsAndPaths(cityPath)
 
